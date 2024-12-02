@@ -8,15 +8,18 @@ import java.util.Collections;
 import java.util.List;
 
 public class ServiceRegistryAndDiscovery implements Watcher {
-    private static final String REGISTRY_ZNODE = "/service_registry";
+    public static final String WORKERS_REGISTRY_ZNODE = "/workers_service_registry";
+    public static final String COORDINATORS_REGISTRY_ZNODE = "/coordinators_service_registry";
     private final ZooKeeper zooKeeper;
 
     private String currentZnode = null;
 
     private List<String> allServiceAddresses = null;
+    private final String serviceRegistryZnode;
 
-    public ServiceRegistryAndDiscovery(ZooKeeper zooKeeper) {
+    public ServiceRegistryAndDiscovery(ZooKeeper zooKeeper, String serviceRegistryZnode) {
         this.zooKeeper = zooKeeper;
+        this.serviceRegistryZnode = serviceRegistryZnode;
         createServiceRegistryZnode();
     }
 
@@ -25,7 +28,7 @@ public class ServiceRegistryAndDiscovery implements Watcher {
             During boot, each node will create a ephemeral znode under the
             service registry's znode.
          */
-        this.currentZnode = zooKeeper.create(REGISTRY_ZNODE + "/n_", metadata.getBytes()
+        this.currentZnode = zooKeeper.create(serviceRegistryZnode + "/n_", metadata.getBytes()
                 ,ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL); //ephemeral znode.
 
         System.out.println("Registered to the service registry.");
@@ -68,8 +71,8 @@ public class ServiceRegistryAndDiscovery implements Watcher {
                 handles such a situation where it will allow only one node to create a particular path.
                 So, we don't have to do any extra handling for that situation.
              */
-            if (zooKeeper.exists(REGISTRY_ZNODE, false) == null) { //if znode not already created.
-                zooKeeper.create(REGISTRY_ZNODE, new byte[] {}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT); //persistent znode.
+            if (zooKeeper.exists(serviceRegistryZnode, false) == null) { //if znode not already created.
+                zooKeeper.create(serviceRegistryZnode, new byte[] {}, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT); //persistent znode.
             }
         } catch (KeeperException e) {
             throw new RuntimeException(e);
@@ -84,12 +87,12 @@ public class ServiceRegistryAndDiscovery implements Watcher {
         can pull the latest address of the other nodes.
      */
     private synchronized void updateAddresses() throws InterruptedException, KeeperException {
-        List<String> workerZnodes = zooKeeper.getChildren(REGISTRY_ZNODE, this);
+        List<String> workerZnodes = zooKeeper.getChildren(serviceRegistryZnode, this);
 
         List<String> addresses = new ArrayList<>(workerZnodes.size());
 
         for (String workerZnode: workerZnodes) {
-            String workerZnodeFullPath = REGISTRY_ZNODE + "/" + workerZnode;
+            String workerZnodeFullPath = serviceRegistryZnode + "/" + workerZnode;
 
             /*
                 If between getting the children znodes (above) and trying to
