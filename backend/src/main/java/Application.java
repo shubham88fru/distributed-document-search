@@ -37,8 +37,12 @@ public class Application implements Watcher {
         ZooKeeper zooKeeper = application.connectToZookeeper();
 
         ////////////////////Integration service registry to the master-worker arch//////////////////////////
-        ServiceRegistryAndDiscovery serviceRegistryAndDiscovery = new ServiceRegistryAndDiscovery(zooKeeper, ServiceRegistryAndDiscovery.WORKERS_REGISTRY_ZNODE);
-        OnElectionAction onElectionAction = new OnElectionAction(serviceRegistryAndDiscovery, currentServerPort);
+        ServiceRegistryAndDiscovery workerServiceRegAndDiscovery = new ServiceRegistryAndDiscovery(zooKeeper,
+                ServiceRegistryAndDiscovery.WORKERS_REGISTRY_ZNODE);
+        ServiceRegistryAndDiscovery coordinatorServiceRegistry = new ServiceRegistryAndDiscovery(zooKeeper,
+            ServiceRegistryAndDiscovery.COORDINATORS_REGISTRY_ZNODE);
+
+        OnElectionAction onElectionAction = new OnElectionAction(workerServiceRegAndDiscovery, coordinatorServiceRegistry, currentServerPort);
 
         LeaderElection leaderElection = new LeaderElection(zooKeeper, onElectionAction);
         ////////////////////Integration service registry to the master-worker arch//////////////////////////
